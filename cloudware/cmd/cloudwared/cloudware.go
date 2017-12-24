@@ -11,8 +11,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"cloudware/cloudware/cli"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/reexec"
 )
 
 type daemonOptions struct {
@@ -34,7 +32,6 @@ func newDaemonCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "cloudward [OPTIONS]",
 		Short:         "A management platform for containers.",
-		Args:          cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.flags = cmd.Flags()
 			return runDaemon(opts)
@@ -44,10 +41,6 @@ func newDaemonCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.version, "version", "v", false, "Print version information and quit")
-	flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "Daemon configuration file")
-	opts.common.InstallFlags(flags)
-	installConfigFlags(opts.daemonConfig, flags)
-	installServiceFlags(flags)
 
 	return cmd
 }

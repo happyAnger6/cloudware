@@ -389,12 +389,10 @@ type (
 )
 
 const (
-	// APIVersion is the version number of the Portainer API.
-	APIVersion = "1.15.5"
-	// DBVersion is the version number of the Portainer database.
-	DBVersion = 7
-	// DefaultTemplatesURL represents the default URL for the templates definitions.
-	DefaultTemplatesURL = "https://raw.githubusercontent.com/portainer/templates/master/templates.json"
+	// APIVersion is the version number of the Cloudware API.
+	APIVersion = "0.0.1"
+	// DBVersion is the version number of the Cloudware database.
+	DBVersion = 1
 )
 
 const (
@@ -424,7 +422,7 @@ const (
 
 const (
 	_ AuthenticationMethod = iota
-	// AuthenticationInternal represents the internal authentication method (authentication against Portainer API)
+	// AuthenticationInternal represents the internal authentication method (authentication against Cloudware API)
 	AuthenticationInternal
 	// AuthenticationLDAP represents the LDAP authentication method (authentication against a LDAP server)
 	AuthenticationLDAP
