@@ -8,6 +8,7 @@ import (
 	"cloudware/cloudware/api/http/server/handler"
 	"cloudware/cloudware/api/http/server/security"
 	"cloudware/cloudware/api/http/server/proxy"
+	"github.com/sirupsen/logrus"
 )
 
 // Server implements the cloudware.Server interface
@@ -30,8 +31,6 @@ type Server struct {
 	DockerHubService       api.DockerHubService
 	StackService           api.StackService
 	StackManager           api.StackManager
-	LDAPService            api.LDAPService
-	GitService             api.GitService
 	Handler                *handler.Handler
 	SSL                    bool
 	SSLCert                string
@@ -48,7 +47,6 @@ func (server *Server) Start() error {
 	authHandler.UserService = server.UserService
 	authHandler.CryptoService = server.CryptoService
 	authHandler.JWTService = server.JWTService
-	authHandler.LDAPService = server.LDAPService
 	authHandler.SettingsService = server.SettingsService
 	var userHandler = handler.NewUserHandler(requestBouncer)
 	userHandler.UserService = server.UserService
@@ -65,7 +63,6 @@ func (server *Server) Start() error {
 	var statusHandler = handler.NewStatusHandler(requestBouncer, server.Status)
 	var settingsHandler = handler.NewSettingsHandler(requestBouncer)
 	settingsHandler.SettingsService = server.SettingsService
-	settingsHandler.LDAPService = server.LDAPService
 	settingsHandler.FileService = server.FileService
 	var templatesHandler = handler.NewTemplatesHandler(requestBouncer)
 	templatesHandler.SettingsService = server.SettingsService
@@ -93,7 +90,6 @@ func (server *Server) Start() error {
 	stackHandler.EndpointService = server.EndpointService
 	stackHandler.ResourceControlService = server.ResourceControlService
 	stackHandler.StackManager = server.StackManager
-	stackHandler.GitService = server.GitService
 	stackHandler.RegistryService = server.RegistryService
 	stackHandler.DockerHubService = server.DockerHubService
 
@@ -116,8 +112,23 @@ func (server *Server) Start() error {
 		UploadHandler:         uploadHandler,
 	}
 
+	return nil
+}
+
+func (server *Server) Wait(waitChan chan error) {
+	var err error
 	if server.SSL {
-		return http.ListenAndServeTLS(server.BindAddress, server.SSLCert, server.SSLKey, server.Handler)
+		err = http.ListenAndServeTLS(server.BindAddress, server.SSLCert, server.SSLKey, server.Handler)
+	} else {
+		err = http.ListenAndServe(server.BindAddress, server.Handler)
 	}
-	return http.ListenAndServe(server.BindAddress, server.Handler)
+	if err != nil {
+		logrus.Errorf("ServeAPI error: %v", err)
+		waitChan <- err
+	}
+	waitChan <- nil
+}
+
+func (server *Server) Close() error {
+	return nil
 }

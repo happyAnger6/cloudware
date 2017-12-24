@@ -8,26 +8,21 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"cloudware/cloudware/cli"
+	"cloudware/cloudware/pkg/term"
+	"cloudware/cloudware/daemon/config"
+	apiCli "cloudware/cloudware/api/cli"
 )
 
-type daemonOptions struct {
-	version      bool
-	LogLevel     int
-	RunMode		 string
-	flags        *pflag.FlagSet
-}
+
 
 const (
 	version="0.1"
 )
 
 func newDaemonCommand() *cobra.Command {
-	opts := daemonOptions{
-		LogLevel: int(logrus.InfoLevel),
-	}
+	opts := newDaemonOptions(config.New())
 
 	cmd := &cobra.Command{
 		Use:           "cloudward [OPTIONS]",
@@ -42,10 +37,11 @@ func newDaemonCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.version, "version", "v", false, "Print version information and quit")
 
+	opts.httpCliFlags, _ = apiCli.InstallHttpServerFlags(flags);
 	return cmd
 }
 
-func runDaemon(opts daemonOptions) error {
+func runDaemon(opts *daemonOptions) error {
 	if opts.version {
 		showVersion()
 		return nil
@@ -56,43 +52,23 @@ func runDaemon(opts daemonOptions) error {
 	// Windows specific settings as these are not defaulted.
 	if runtime.GOOS == "windows" {
 		if opts.daemonConfig.Pidfile == "" {
-			opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
+			opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "cloudware.pid")
 		}
 		if opts.configFile == "" {
 			opts.configFile = filepath.Join(opts.daemonConfig.Root, `config\daemon.json`)
 		}
 	}
 
-	// On Windows, this may be launching as a service or with an option to
-	// register the service.
-	stop, runAsService, err := initService(daemonCli)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	if stop {
-		return nil
-	}
-
-	// If Windows SCM manages the service - no need for PID files
-	if runAsService {
-		opts.daemonConfig.Pidfile = ""
-	}
-
-	err = daemonCli.start(opts)
+	err := daemonCli.start(opts)
 	notifyShutdown(err)
 	return err
 }
 
 func showVersion() {
-	fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
+	fmt.Printf("Cloudware version %s\n", version)
 }
 
 func main() {
-	if reexec.Init() {
-		return
-	}
-
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()
 

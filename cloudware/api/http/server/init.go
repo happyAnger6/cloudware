@@ -9,6 +9,7 @@ import (
 	"cloudware/cloudware/api/http/server/jwt"
 	"cloudware/cloudware/api/exec"
 	"cloudware/cloudware/api/crypto"
+	"cloudware/cloudware/api/cron"
 )
 
 func initFileService(dataStorePath string) api.FileService {
@@ -56,14 +57,6 @@ func initCryptoService() api.CryptoService {
 	return &crypto.Service{}
 }
 
-func initLDAPService() api.LDAPService {
-	return &ldap.Service{}
-}
-
-func initGitService() api.GitService {
-	return &git.Service{}
-}
-
 func initEndpointWatcher(endpointService api.EndpointService, externalEnpointFile string, syncInterval string) bool {
 	authorizeEndpointMgmt := true
 	if externalEnpointFile != "" {
@@ -78,10 +71,10 @@ func initEndpointWatcher(endpointService api.EndpointService, externalEnpointFil
 	return authorizeEndpointMgmt
 }
 
-func initStatus(authorizeEndpointMgmt bool, flags *api.CLIFlags) *api.Status {
+func initStatus(authorizeEndpointMgmt bool, flags *api.HttpCliFlags) *api.Status {
 	return &api.Status{
-		Analytics:          !*flags.NoAnalytics,
-		Authentication:     !*flags.NoAuth,
+		Analytics:          !flags.NoAnalytics,
+		Authentication:     !flags.NoAuth,
 		EndpointManagement: authorizeEndpointMgmt,
 		Version:            api.APIVersion,
 	}
@@ -103,11 +96,11 @@ func initDockerHub(dockerHubService api.DockerHubService) error {
 	return nil
 }
 
-func initSettings(settingsService api.SettingsService, flags *api.CLIFlags) error {
+func initSettings(settingsService api.SettingsService, flags *api.HttpCliFlags) error {
 	_, err := settingsService.Settings()
 	if err == api.ErrSettingsNotFound {
 		settings := &api.Settings{
-			LogoURL:                     *flags.Logo,
+			LogoURL:                     flags.Logo,
 			DisplayDonationHeader:       true,
 			DisplayExternalContributors: false,
 			AuthenticationMethod:        api.AuthenticationInternal,
@@ -121,13 +114,13 @@ func initSettings(settingsService api.SettingsService, flags *api.CLIFlags) erro
 			AllowPrivilegedModeForRegularUsers: true,
 		}
 
-		if *flags.Templates != "" {
-			settings.TemplatesURL = *flags.Templates
+		if flags.Templates != "" {
+			settings.TemplatesURL = flags.Templates
 		} else {
 			settings.TemplatesURL = api.DefaultTemplatesURL
 		}
 
-		if *flags.Labels != nil {
+		if flags.Labels != nil {
 			settings.BlackListedLabels = *flags.Labels
 		} else {
 			settings.BlackListedLabels = make([]api.Pair, 0)
@@ -149,25 +142,19 @@ func retrieveFirstEndpointFromDatabase(endpointService api.EndpointService) *api
 	return &endpoints[0]
 }
 
-func New() *api.Server{
-	flags := initCLI()
+func New(flags * api.HttpCliFlags) *Server{
+	fileService := initFileService(flags.Data)
 
-	fileService := initFileService(*flags.Data)
-
-	store := initStore(*flags.Data)
+	store := initStore(flags.Data)
 	defer store.Close()
 
-	stackManager := initStackManager(*flags.Assets)
+	stackManager := initStackManager(flags.Assets)
 
-	jwtService := initJWTService(!*flags.NoAuth)
+	jwtService := initJWTService(!flags.NoAuth)
 
 	cryptoService := initCryptoService()
 
-	ldapService := initLDAPService()
-
-	gitService := initGitService()
-
-	authorizeEndpointMgmt := initEndpointWatcher(store.EndpointService, *flags.ExternalEndpoints, *flags.SyncInterval)
+	authorizeEndpointMgmt := initEndpointWatcher(store.EndpointService, flags.ExternalEndpoints, flags.SyncInterval)
 
 	err := initSettings(store.SettingsService, flags)
 	if err != nil {
@@ -181,7 +168,7 @@ func New() *api.Server{
 
 	applicationStatus := initStatus(authorizeEndpointMgmt, flags)
 
-	if *flags.Endpoint != "" {
+	if flags.Endpoint != "" {
 		endpoints, err := store.EndpointService.Endpoints()
 		if err != nil {
 			log.Fatal(err)
@@ -189,13 +176,13 @@ func New() *api.Server{
 		if len(endpoints) == 0 {
 			endpoint := &api.Endpoint{
 				Name: "primary",
-				URL:  *flags.Endpoint,
+				URL:  flags.Endpoint,
 				TLSConfig: api.TLSConfiguration{
-					TLS:           *flags.TLSVerify,
+					TLS:           flags.TLSVerify,
 					TLSSkipVerify: false,
-					TLSCACertPath: *flags.TLSCacert,
-					TLSCertPath:   *flags.TLSCert,
-					TLSKeyPath:    *flags.TLSKey,
+					TLSCACertPath: flags.TLSCacert,
+					TLSCertPath:   flags.TLSCert,
+					TLSKeyPath:    flags.TLSKey,
 				},
 				AuthorizedUsers: []api.UserID{},
 				AuthorizedTeams: []api.TeamID{},
@@ -210,8 +197,8 @@ func New() *api.Server{
 	}
 
 	adminPasswordHash := ""
-	if *flags.AdminPasswordFile != "" {
-		content, err := fileService.GetFileContent(*flags.AdminPasswordFile)
+	if flags.AdminPasswordFile != "" {
+		content, err := fileService.GetFileContent(flags.AdminPasswordFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -219,8 +206,8 @@ func New() *api.Server{
 		if err != nil {
 			log.Fatal(err)
 		}
-	} else if *flags.AdminPassword != "" {
-		adminPasswordHash = *flags.AdminPassword
+	} else if flags.AdminPassword != "" {
+		adminPasswordHash = flags.AdminPassword
 	}
 
 	if adminPasswordHash != "" {
@@ -245,11 +232,11 @@ func New() *api.Server{
 		}
 	}
 
-	var server api.Server = &Server{
+	return &Server{
 		Status:                 applicationStatus,
-		BindAddress:            *flags.Addr,
-		AssetsPath:             *flags.Assets,
-		AuthDisabled:           *flags.NoAuth,
+		BindAddress:            flags.Addr,
+		AssetsPath:             flags.Assets,
+		AuthDisabled:           flags.NoAuth,
 		EndpointManagement:     authorizeEndpointMgmt,
 		UserService:            store.UserService,
 		TeamService:            store.TeamService,
@@ -264,18 +251,9 @@ func New() *api.Server{
 		CryptoService:          cryptoService,
 		JWTService:             jwtService,
 		FileService:            fileService,
-		LDAPService:            ldapService,
-		GitService:             gitService,
-		SSL:                    *flags.SSL,
-		SSLCert:                *flags.SSLCert,
-		SSLKey:                 *flags.SSLKey,
+		SSL:                    flags.SSL,
+		SSLCert:                flags.SSLCert,
+		SSLKey:                 flags.SSLKey,
 	}
-
-	log.Printf("Starting Portainer %s on %s", api.APIVersion, *flags.Addr)
-	err = server.Start()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return server
+	//log.Printf("Starting Cloudware %s on %s", api.APIVersion, flags.Addr)
 }

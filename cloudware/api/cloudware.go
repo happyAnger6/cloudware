@@ -9,28 +9,28 @@ type (
 		Value string `json:"value"`
 	}
 
-	// CLIFlags represents the available flags on the CLI.
-	CLIFlags struct {
-		Addr              *string
-		Assets            *string
-		Data              *string
-		ExternalEndpoints *string
-		SyncInterval      *string
-		Endpoint          *string
-		NoAuth            *bool
-		NoAnalytics       *bool
-		TLSVerify         *bool
-		TLSCacert         *string
-		TLSCert           *string
-		TLSKey            *string
-		SSL               *bool
-		SSLCert           *string
-		SSLKey            *string
-		AdminPassword     *string
-		AdminPasswordFile *string
+	// HttpCliFlags represents the available flags on the CLI.
+	HttpCliFlags struct {
+		Addr              string
+		Assets            string
+		Data              string
+		ExternalEndpoints string
+		SyncInterval      string
+		Endpoint          string
+		NoAuth            bool
+		NoAnalytics       bool
+		TLSVerify         bool
+		TLSCacert         string
+		TLSCert           string
+		TLSKey            string
+		SSL               bool
+		SSLCert           string
+		SSLKey            string
+		AdminPassword     string
+		AdminPasswordFile string
 		// Deprecated fields
-		Logo      *string
-		Templates *string
+		Logo      string
+		Templates string
 		Labels    *[]Pair
 	}
 
@@ -231,8 +231,8 @@ type (
 
 	// CLIService represents a service for managing CLI.
 	CLIService interface {
-		ParseFlags(version string) (*CLIFlags, error)
-		ValidateFlags(flags *CLIFlags) error
+		ParseFlags(version string) (*HttpCliFlags, error)
+		ValidateFlags(flags *HttpCliFlags) error
 	}
 
 	// DataStore defines the interface to manage the data.
@@ -244,7 +244,8 @@ type (
 
 	// Server defines the interface to serve the API.
 	Server interface {
-		Start() error
+		Wait(waitChan chan error)
+		Close() error
 	}
 
 	// UserService represents a service for managing user data.
@@ -393,6 +394,8 @@ const (
 	APIVersion = "0.0.1"
 	// DBVersion is the version number of the Cloudware database.
 	DBVersion = 1
+	// DefaultTemplatesURL represents the default URL for the templates definitions.
+	DefaultTemplatesURL = "https://raw.githubusercontent.com/portainer/templates/master/templates.json"
 )
 
 const (
