@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "",
+	"package": [
+		{
+			"checksumSHA1": "XQwNr2d0YOW0ySCiNi3AqUqTEBQ=",
+			"path": "github.com/orcaman/concurrent-map",
+			"revision": "d4c23bd0e01134806215ffe65ba3fd22ec6721f7",
+			"revisionTime": "2017-10-24T15:42:51Z"
+		}
+	],
+	"rootPath": "cloudware/cloudware"
+}
